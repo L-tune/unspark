@@ -1,0 +1,11 @@
+dist/
+*.dmg
+*.app
+*.tar.gz
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+.idea/
+.vscode/
+*.iconset/

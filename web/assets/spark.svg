@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="sparkGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4FC3F7"></stop>
+      <stop offset="50%" stop-color="#9C27B0"></stop>
+      <stop offset="100%" stop-color="#FF6EC7"></stop>
+    </linearGradient>
+    <radialGradient id="sparkGlow" cx="32" cy="32" r="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9C27B0" stop-opacity="0.45"></stop>
+      <stop offset="60%" stop-color="#4FC3F7" stop-opacity="0.1"></stop>
+      <stop offset="100%" stop-color="#4FC3F7" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="32" fill="url(#sparkGlow)"></circle>
+  
+  <path d="&#xA;      M 32 2&#xA;      C 33.5 18, 46 30.5, 62 32&#xA;      C 46 33.5, 33.5 46, 32 62&#xA;      C 30.5 46, 18 33.5, 2 32&#xA;      C 18 30.5, 30.5 18, 32 2&#xA;      Z&#xA;    " fill="url(#sparkGrad)"></path>
+</svg>

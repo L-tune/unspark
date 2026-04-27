@@ -174,12 +174,36 @@ class Bridge:
             except OSError:
                 pass
 
-    def process_batch(self, paths: list[str]) -> str:
-        """Async. Spawns worker thread that pushes progress events into JS."""
+    _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+    def _expand_paths(self, paths: list[str]) -> list[str]:
+        """Walk any directory in `paths` and return all image files (recursive)."""
+        out: list[str] = []
+        for raw in paths:
+            p = Path(os.path.expanduser(raw))
+            if p.is_dir():
+                for child in sorted(p.rglob("*")):
+                    if child.is_file() and child.suffix.lower() in self._IMAGE_EXTS:
+                        out.append(str(child))
+            elif p.is_file():
+                out.append(str(p))
+        return out
+
+    def expand_paths(self, paths: list[str]) -> list[str]:
+        """Public version of _expand_paths so JS can preview the count before kickoff."""
+        return self._expand_paths(paths)
+
+    def process_batch(self, paths: list[str]) -> dict:
+        """Async. Spawns worker thread that pushes progress events into JS.
+
+        `paths` may contain directories; they are recursively expanded to image
+        files. Returns {batchId, count, files} so the UI can render rows up-front.
+        """
+        files = self._expand_paths(paths)
         batch_id = f"batch_{int(time.time() * 1000)}"
-        thread = threading.Thread(target=self._batch_worker, args=(batch_id, paths), daemon=True)
+        thread = threading.Thread(target=self._batch_worker, args=(batch_id, files), daemon=True)
         thread.start()
-        return batch_id
+        return {"batchId": batch_id, "count": len(files), "files": files}
 
     def _batch_worker(self, batch_id: str, paths: list[str]):
         for i, p in enumerate(paths):
@@ -215,6 +239,14 @@ class Bridge:
             file_types=("Images (*.png;*.jpg;*.jpeg;*.webp)",),
         )
         return list(result) if result else []
+
+    def show_folder_dialog(self) -> str:
+        """Pick a folder. Returns absolute path or '' on cancel."""
+        result = self._window.create_file_dialog(webview.FOLDER_DIALOG)
+        if not result:
+            return ""
+        # FOLDER_DIALOG returns tuple/list with one path on macOS.
+        return result[0] if isinstance(result, (list, tuple)) else str(result)
 
     def show_save_dialog(self, suggested_name: str = "unsparked.png") -> str:
         result = self._window.create_file_dialog(
@@ -272,10 +304,16 @@ def _on_loaded(bridge: Bridge):
                 processBatch: function (paths) {
                     var et = new EventTarget();
                     activeET = et;
-                    api.process_batch(paths).then(function (id) { activeBatchId = id; });
+                    api.process_batch(paths).then(function (info) {
+                        activeBatchId = info && info.batchId;
+                        // Hand off the resolved file list so the UI can render rows.
+                        et.dispatchEvent(new CustomEvent("ready", { detail: info || {} }));
+                    });
                     return et;
                 },
+                expandPaths: function (paths) { return api.expand_paths(paths); },
                 showOpenDialog: function () { return api.show_open_dialog(); },
+                showFolderDialog: function () { return api.show_folder_dialog(); },
                 showSaveDialog: function (name) { return api.show_save_dialog(name || 'unsparked.png'); },
                 saveToPath: function (src, dest) { return api.save_to_path(src, dest); },
                 openInFinder: function (path) { return api.open_in_finder(path); },

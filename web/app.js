@@ -107,19 +107,38 @@
       pathsPromise.then(function (nativePaths) {
         nativePaths = nativePaths || [];
         var enriched = files.map(function (f, i) {
-          // Match by index (same drop order). Fall back to f.path if WebKit ever
-          // exposes it, then null — last resort triggers bytes-only flow.
           f._unsparkPath = nativePaths[i] || f.path || null;
           return f;
         });
-        if (enriched.length === 1) startProcessing(enriched[0]);
-        else startBatch(enriched);
+
+        // Folder-drop heuristic: a path with no file-extension is treated as a directory.
+        // Expand it via the bridge so we get the recursive image list before running.
+        var hasFolder = nativePaths.some(function (p) {
+          return p && !/\.[a-z0-9]{2,5}$/i.test(p);
+        });
+
+        if (hasFolder && bridgeLive() && window.unspark.expandPaths) {
+          Promise.resolve(window.unspark.expandPaths(nativePaths)).then(function (expanded) {
+            if (!expanded || !expanded.length) { setState("idle"); return; }
+            var pseudo = expanded.map(function (p) {
+              return { name: String(p).split("/").pop() || "image", size: null, _unsparkPath: p };
+            });
+            if (pseudo.length === 1) startProcessing(pseudo[0]);
+            else startBatch(pseudo);
+          });
+        } else if (enriched.length === 1) {
+          startProcessing(enriched[0]);
+        } else {
+          startBatch(enriched);
+        }
       });
     });
 
     // click to choose
     dropzones.forEach(function (dz) {
-      dz.addEventListener("click", function () {
+      dz.addEventListener("click", function (e) {
+        // Inner buttons with their own data-action handle their own click.
+        if (e.target.closest("[data-action]")) return;
         if (bridgeLive()) {
           Promise.resolve(window.unspark.showOpenDialog()).then(function (paths) {
             if (!paths || !paths.length) return;
@@ -456,6 +475,22 @@
       var t = e.target.closest("[data-action]");
       if (!t) return;
       var a = t.getAttribute("data-action");
+      if (a === "choose-folder") {
+        if (!bridgeLive() || !window.unspark.showFolderDialog) return;
+        Promise.resolve(window.unspark.showFolderDialog()).then(function (dir) {
+          if (!dir) return;
+          // Ask Python to walk the folder, then start the batch flow.
+          Promise.resolve(window.unspark.expandPaths([dir])).then(function (files) {
+            if (!files || !files.length) return;
+            var pseudo = files.map(function (p) {
+              return { name: String(p).split("/").pop() || "image", size: null, _unsparkPath: p };
+            });
+            if (pseudo.length === 1) startProcessing(pseudo[0]);
+            else startBatch(pseudo);
+          });
+        });
+        return;
+      }
       if (a === "save") {
         var stage = $(".result-stage");
         var src = stage && stage.dataset.outputPath;

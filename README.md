@@ -10,9 +10,24 @@ No cloud, no signup, no upload. Drop image → cleaned image lands in the same f
 
 Grab the latest `Unspark.dmg` from [Releases](https://github.com/L-tune/unspark/releases).
 
-Drag `Unspark.app` into `/Applications`. First launch: right-click → Open (Gatekeeper bypass for ad-hoc signed apps).
+Drag `Unspark.app` into `/Applications`.
 
 Requires macOS 11 (Big Sur) or later, Apple Silicon recommended.
+
+### Why does macOS say "Apple cannot check it for malicious software"?
+
+Unspark is signed with an ad-hoc signature, not an Apple Developer ID ($99/year program plus notarization workflow). So Gatekeeper refuses to launch it on the first try. This has nothing to do with the file size or any actual malware check — it's a policy block for any app distributed outside the Mac App Store without a paid Apple developer certificate.
+
+Three ways to open it (any one is enough, you only need to do this once):
+
+1. **Right-click the app** in Finder → choose `Open` → click `Open` again in the dialog. macOS remembers your choice; future launches work normally.
+2. **System Settings → Privacy & Security**. After a blocked launch, scroll down and click `Open Anyway`.
+3. **Terminal one-liner** (removes the quarantine flag macOS adds to anything downloaded):
+   ```
+   xattr -dr com.apple.quarantine /Applications/Unspark.app
+   ```
+
+The source code is here in this repo. Build it yourself with `./build.sh` if you want to skip the trust dance entirely — your local build is automatically trusted.
 
 ## What it does
 
